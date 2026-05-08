@@ -1,0 +1,164 @@
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0b2f17;
+  color: #fff;
+}
+
+.app {
+  width: min(1024px, 100vw);
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.toolbar h1 {
+  font-size: 1.2rem;
+  margin: 0;
+  text-transform: lowercase;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+button {
+  border: 1px solid #ffffff80;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #173b24;
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.board-wrap {
+  width: 100%;
+}
+
+.board {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  min-height: 70vh;
+  border: 3px solid #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1f8f3a;
+  touch-action: none;
+  user-select: none;
+}
+
+.markings,
+#drawLayer {
+  position: absolute;
+  inset: 0;
+}
+
+.center-line {
+  position: absolute;
+  left: 50%;
+  width: 3px;
+  height: 100%;
+  transform: translateX(-50%);
+  background: #fff;
+}
+
+.center-circle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 3px solid #fff;
+  border-radius: 50%;
+}
+
+.goal-area {
+  position: absolute;
+  left: 50%;
+  width: 28%;
+  height: 16%;
+  border: 3px solid #fff;
+  transform: translateX(-50%);
+}
+
+.goal-area-top {
+  top: 0;
+  border-top: none;
+}
+
+.goal-area-bottom {
+  bottom: 0;
+  border-bottom: none;
+}
+
+.bar {
+  --bar-offset: 0%;
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 22px;
+  transform: translateX(-50%) translateY(var(--bar-offset));
+  touch-action: none;
+}
+
+.rail {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  transform: translateX(-50%);
+  background: #ffffffb0;
+}
+
+.players {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: center;
+}
+
+.player {
+  width: 18px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #0d5a23;
+}
+
+.ball {
+  --x: 50%;
+  --y: 50%;
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 18px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border: 2px solid #0d5a23;
+  touch-action: none;
+}
