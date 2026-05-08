@@ -55,6 +55,8 @@ button {
   width: 100%;
   display: flex;
   align-items: center;
+  overflow: hidden;
+  padding: 50px 0;
 }
 
 .board {
@@ -130,6 +132,7 @@ button {
   width: 22px;
   transform: translateX(-50%) translateY(var(--bar-offset));
   touch-action: none;
+  z-index: 2;
 }
 
 .rail {
@@ -218,6 +221,7 @@ button {
   background: #fff;
   border: 2px solid #0d5a23;
   touch-action: none;
+  z-index: 1;
 }
 
 .goal {
