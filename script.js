@@ -31,9 +31,16 @@ function buildPlayers() {
 }
 
 function resizeDrawingLayer() {
+  const previous = document.createElement("canvas");
+  previous.width = drawLayer.width;
+  previous.height = drawLayer.height;
+  const previousCtx = previous.getContext("2d");
+  previousCtx.drawImage(drawLayer, 0, 0);
+
   const rect = board.getBoundingClientRect();
   drawLayer.width = rect.width;
   drawLayer.height = rect.height;
+  drawCtx.drawImage(previous, 0, 0, previous.width, previous.height, 0, 0, drawLayer.width, drawLayer.height);
 }
 
 function clamp(value, min, max) {
