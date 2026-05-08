@@ -12,10 +12,14 @@ const boardState = {
 };
 
 const drawCtx = drawLayer.getContext("2d");
-drawCtx.lineCap = "round";
-drawCtx.lineJoin = "round";
-drawCtx.strokeStyle = "#ffffff";
-drawCtx.lineWidth = 3;
+let resizeTimer;
+
+function configureDrawingContext() {
+  drawCtx.lineCap = "round";
+  drawCtx.lineJoin = "round";
+  drawCtx.strokeStyle = "#ffffff";
+  drawCtx.lineWidth = 3;
+}
 
 function buildPlayers() {
   bars.forEach((bar) => {
@@ -40,6 +44,7 @@ function resizeDrawingLayer() {
   const rect = board.getBoundingClientRect();
   drawLayer.width = rect.width;
   drawLayer.height = rect.height;
+  configureDrawingContext();
   drawCtx.drawImage(previous, 0, 0, previous.width, previous.height, 0, 0, drawLayer.width, drawLayer.height);
 }
 
@@ -158,8 +163,12 @@ board.addEventListener("pointerdown", onPointerDown);
 board.addEventListener("pointermove", onPointerMove);
 board.addEventListener("pointerup", onPointerUp);
 board.addEventListener("pointercancel", onPointerUp);
-window.addEventListener("resize", resizeDrawingLayer);
+window.addEventListener("resize", () => {
+  window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(resizeDrawingLayer, 100);
+});
 
 buildPlayers();
+configureDrawingContext();
 resizeDrawingLayer();
 setDrawMode(false);
