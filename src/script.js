@@ -68,14 +68,15 @@ function pointerPosition(event) {
 }
 
 function handleBarMove(bar, pointerY, rect) {
-  const constrainedIds = ["bar-2", "bar-4", "bar-5", "bar-7"];
+  const constrainedIds = ["bar-2", "bar-3", "bar-4", "bar-5", "bar-6", "bar-7"];
   let maxOffset;
   if (constrainedIds.includes(bar.dataset.id)) {
     const playersEl = bar.querySelector(".players");
     const playerCount = playersEl ? Number(playersEl.dataset.count) : 1;
     // With space-evenly, first/last player center is at H/(N+1) from the edge.
-    // Subtract half the player height (13px) so the player body stays within the field.
-    const playerHalfHeight = 13;
+    // Subtract half the visual player height (including rotated shoulders) so the
+    // player body stays within the field. 16px accounts for the shoulder width.
+    const playerHalfHeight = 16;
     maxOffset = Math.max(0, rect.height / (playerCount + 1) - playerHalfHeight);
   } else {
     maxOffset = rect.height * 0.2;
