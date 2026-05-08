@@ -51,11 +51,13 @@ button {
 
 .board-wrap {
   width: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .board {
   position: relative;
-  width: 100%;
+  flex: 1 1 auto;
   aspect-ratio: 16 / 10;
   min-height: 70vh;
   border: 3px solid #fff;
@@ -74,10 +76,10 @@ button {
 
 .center-line {
   position: absolute;
-  left: 50%;
-  width: 3px;
-  height: 100%;
-  transform: translateX(-50%);
+  top: 50%;
+  width: 100%;
+  height: 3px;
+  transform: translateY(-50%);
   background: #fff;
 }
 
@@ -94,21 +96,21 @@ button {
 
 .goal-area {
   position: absolute;
-  left: 50%;
-  width: 28%;
-  height: 16%;
+  top: 50%;
+  width: 16%;
+  height: 28%;
   border: 3px solid #fff;
-  transform: translateX(-50%);
+  transform: translateY(-50%);
 }
 
-.goal-area-top {
-  top: 0;
-  border-top: none;
+.goal-area-left {
+  left: 0;
+  border-left: none;
 }
 
-.goal-area-bottom {
-  bottom: 0;
-  border-bottom: none;
+.goal-area-right {
+  right: 0;
+  border-right: none;
 }
 
 .bar {
@@ -141,11 +143,35 @@ button {
 }
 
 .player {
+  position: relative;
   width: 18px;
-  aspect-ratio: 1;
-  border-radius: 50%;
+  height: 26px;
+  border-radius: 50% 50% 40% 40% / 40% 40% 30% 30%;
   background: #fff;
   border: 2px solid #0d5a23;
+  flex-shrink: 0;
+}
+
+.player::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 7px;
+  border-radius: 4px;
+  background: inherit;
+}
+
+.bar[data-team="1"] .player {
+  background: #1565c0;
+  border-color: #0d3b7a;
+}
+
+.bar[data-team="2"] .player {
+  background: #c62828;
+  border-color: #7a0d0d;
 }
 
 .ball {
@@ -154,11 +180,28 @@ button {
   position: absolute;
   left: var(--x);
   top: var(--y);
-  width: 18px;
+  width: 26px;
   aspect-ratio: 1;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   background: #fff;
   border: 2px solid #0d5a23;
   touch-action: none;
+}
+
+.goal {
+  flex-shrink: 0;
+  width: 36px;
+  background: #0a2010;
+  border: 3px solid #fff;
+}
+
+.goal-left {
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+}
+
+.goal-right {
+  border-left: none;
+  border-radius: 0 8px 8px 0;
 }
