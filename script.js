@@ -5,6 +5,7 @@ const clearDrawingsBtn = document.getElementById("clearDrawings");
 const resetBoardBtn = document.getElementById("resetBoard");
 const ball = document.getElementById("ball");
 const bars = Array.from(document.querySelectorAll(".bar"));
+const goals = Array.from(document.querySelectorAll(".goal"));
 
 const boardState = {
   drawMode: false,
@@ -46,6 +47,11 @@ function resizeDrawingLayer() {
   drawLayer.height = rect.height;
   configureDrawingContext();
   drawCtx.drawImage(previous, 0, 0, previous.width, previous.height, 0, 0, drawLayer.width, drawLayer.height);
+
+  const goalHeight = rect.height * 0.3;
+  goals.forEach((g) => {
+    g.style.height = `${goalHeight}px`;
+  });
 }
 
 function clamp(value, min, max) {
