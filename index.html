@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>foostac</title>
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -19,19 +20,20 @@
       <section class="board-wrap">
         <div class="goal goal-left" aria-label="Linkes Tor"></div>
         <div id="board" class="board" aria-label="Foosball tactics board">
-          <div class="markings">
-            <div class="center-line"></div>
-            <div class="center-circle"></div>
-            <div class="goal-area goal-area-left"></div>
-            <div class="goal-area goal-area-right"></div>
+          <div class="board-field">
+            <div class="markings">
+              <div class="center-circle"></div>
+              <div class="goal-area goal-area-left"></div>
+              <div class="goal-area goal-area-right"></div>
+            </div>
+            <canvas id="drawLayer"></canvas>
           </div>
-          <canvas id="drawLayer"></canvas>
           <!-- Team 1 (blue) -->
           <div class="bar" data-id="bar-1" data-team="1" style="left: 9%">
             <div class="rail"></div>
             <div class="players" data-count="1"></div>
           </div>
-          <div class="bar" data-id="bar-3" data-team="1" style="left: 31%">
+          <div class="bar" data-id="bar-3" data-team="1" style="left: 20%">
             <div class="rail"></div>
             <div class="players" data-count="2"></div>
           </div>
@@ -39,12 +41,12 @@
             <div class="rail"></div>
             <div class="players" data-count="5"></div>
           </div>
-          <div class="bar" data-id="bar-7" data-team="1" style="left: 80%">
+          <div class="bar" data-id="bar-7" data-team="1" style="left: 69%">
             <div class="rail"></div>
             <div class="players" data-count="3"></div>
           </div>
           <!-- Team 2 (red) -->
-          <div class="bar" data-id="bar-2" data-team="2" style="left: 20%">
+          <div class="bar" data-id="bar-2" data-team="2" style="left: 31%">
             <div class="rail"></div>
             <div class="players" data-count="3"></div>
           </div>
@@ -52,7 +54,7 @@
             <div class="rail"></div>
             <div class="players" data-count="5"></div>
           </div>
-          <div class="bar" data-id="bar-6" data-team="2" style="left: 69%">
+          <div class="bar" data-id="bar-6" data-team="2" style="left: 80%">
             <div class="rail"></div>
             <div class="players" data-count="2"></div>
           </div>
