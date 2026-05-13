@@ -1,18 +1,22 @@
 const board = document.getElementById("board");
 const drawLayer = document.getElementById("drawLayer");
+const shadowLayer = document.getElementById("shadowLayer");
 const toggleDrawBtn = document.getElementById("toggleDraw");
 const clearDrawingsBtn = document.getElementById("clearDrawings");
 const resetBoardBtn = document.getElementById("resetBoard");
+const coverageSelect = document.getElementById("coverageSelect");
 const ball = document.getElementById("ball");
 const bars = Array.from(document.querySelectorAll(".bar"));
 const goals = Array.from(document.querySelectorAll(".goal"));
 
 const boardState = {
   drawMode: false,
+  coverageTeam: 0,
   pointers: new Map(),
 };
 
 const drawCtx = drawLayer.getContext("2d");
+const shadowCtx = shadowLayer.getContext("2d");
 let resizeTimer;
 
 function configureDrawingContext() {
@@ -48,10 +52,107 @@ function resizeDrawingLayer() {
   configureDrawingContext();
   drawCtx.drawImage(previous, 0, 0, previous.width, previous.height, 0, 0, drawLayer.width, drawLayer.height);
 
+  shadowLayer.width = rect.width;
+  shadowLayer.height = rect.height;
+  drawCoverage();
+
   const goalHeight = rect.height * 0.3;
   goals.forEach((g) => {
     g.style.height = `${goalHeight}px`;
   });
+}
+
+function drawCoverage() {
+  const team = boardState.coverageTeam;
+  const w = shadowLayer.width;
+  const h = shadowLayer.height;
+
+  shadowCtx.clearRect(0, 0, w, h);
+  if (!team) return;
+
+  const xPct = parseFloat(ball.style.getPropertyValue("--x") || "50%");
+  const yPct = parseFloat(ball.style.getPropertyValue("--y") || "50%");
+  const ballX = (xPct / 100) * w;
+  const ballY = (yPct / 100) * h;
+
+  // Team 1 (blue, left side) attacks toward the right goal; Team 2 defends.
+  // Team 2 (red, right side) attacks toward the left goal; Team 1 defends.
+  const goalX = team === 1 ? w : 0;
+  const goalTopY = h * 0.35;
+  const goalBottomY = h * 0.65;
+  const defendingTeam = team === 1 ? 2 : 1;
+
+  // Step 1: Dark overlay over the entire board.
+  shadowCtx.globalCompositeOperation = "source-over";
+  shadowCtx.globalAlpha = 0.55;
+  shadowCtx.fillStyle = "#000000";
+  shadowCtx.fillRect(0, 0, w, h);
+
+  // Step 2: Carve out the full shooting cone so the open area is transparent.
+  shadowCtx.globalCompositeOperation = "destination-out";
+  shadowCtx.globalAlpha = 1;
+  shadowCtx.beginPath();
+  shadowCtx.moveTo(ballX, ballY);
+  shadowCtx.lineTo(goalX, goalTopY);
+  shadowCtx.lineTo(goalX, goalBottomY);
+  shadowCtx.closePath();
+  shadowCtx.fill();
+
+  // Step 3: Restore darkness for the angular region blocked by each defender.
+  shadowCtx.globalCompositeOperation = "source-over";
+  const playerRadius = 14;
+
+  bars
+    .filter((b) => b.dataset.team === String(defendingTeam))
+    .forEach((bar) => {
+      const barX = (parseFloat(bar.style.left) / 100) * w;
+      // Only players between the ball and the goal cast a blocking shadow.
+      const isBlocking = team === 1 ? barX > ballX : barX < ballX;
+      if (!isBlocking) return;
+
+      const barOffset = parseFloat(bar.style.getPropertyValue("--bar-offset") || "0");
+      const playersEl = bar.querySelector(".players");
+      const count = parseInt(playersEl.dataset.count, 10);
+
+      for (let i = 0; i < count; i += 1) {
+        const py = ((i + 1) / (count + 1)) * h + barOffset;
+        const dx = barX - ballX;
+        const dy = py - ballY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 1) continue;
+
+        // Perpendicular unit vector for tangent offset.
+        const nx = -dy / dist;
+        const ny = dx / dist;
+
+        // Two tangent directions from ball past the player's edges.
+        const d1x = dx + nx * playerRadius;
+        const d1y = dy + ny * playerRadius;
+        const d2x = dx - nx * playerRadius;
+        const d2y = dy - ny * playerRadius;
+
+        const extendLen = Math.max(w, h) * 3;
+        const len1 = Math.sqrt(d1x * d1x + d1y * d1y);
+        const len2 = Math.sqrt(d2x * d2x + d2y * d2y);
+        const far1x = ballX + (d1x / len1) * extendLen;
+        const far1y = ballY + (d1y / len1) * extendLen;
+        const far2x = ballX + (d2x / len2) * extendLen;
+        const far2y = ballY + (d2y / len2) * extendLen;
+
+        shadowCtx.globalAlpha = 0.6;
+        shadowCtx.fillStyle = "#000000";
+        shadowCtx.beginPath();
+        shadowCtx.moveTo(ballX, ballY);
+        shadowCtx.lineTo(far1x, far1y);
+        shadowCtx.lineTo(far2x, far2y);
+        shadowCtx.closePath();
+        shadowCtx.fill();
+      }
+    });
+
+  // Restore default compositing state.
+  shadowCtx.globalCompositeOperation = "source-over";
+  shadowCtx.globalAlpha = 1;
 }
 
 function clamp(value, min, max) {
@@ -83,6 +184,7 @@ function handleBarMove(bar, pointerY, rect) {
   }
   const offset = clamp(pointerY - rect.height / 2, -maxOffset, maxOffset);
   bar.style.setProperty("--bar-offset", `${offset}px`);
+  drawCoverage();
 }
 
 function handleBallMove(pointerX, pointerY, rect) {
@@ -90,6 +192,7 @@ function handleBallMove(pointerX, pointerY, rect) {
   const y = clamp((pointerY / rect.height) * 100, 2, 98);
   ball.style.setProperty("--x", `${x}%`);
   ball.style.setProperty("--y", `${y}%`);
+  drawCoverage();
 }
 
 function onPointerDown(event) {
@@ -168,6 +271,7 @@ function resetBoard() {
   ball.style.setProperty("--x", "50%");
   ball.style.setProperty("--y", "50%");
   clearDrawing();
+  drawCoverage();
 }
 
 toggleDrawBtn.addEventListener("click", () => {
@@ -176,6 +280,10 @@ toggleDrawBtn.addEventListener("click", () => {
 
 clearDrawingsBtn.addEventListener("click", clearDrawing);
 resetBoardBtn.addEventListener("click", resetBoard);
+coverageSelect.addEventListener("change", () => {
+  boardState.coverageTeam = parseInt(coverageSelect.value, 10);
+  drawCoverage();
+});
 
 board.addEventListener("pointerdown", onPointerDown);
 board.addEventListener("pointermove", onPointerMove);

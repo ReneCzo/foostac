@@ -42,13 +42,15 @@ body {
   flex-wrap: wrap;
 }
 
-button {
+button,
+select {
   border: 1px solid #ffffff80;
   border-radius: 8px;
   padding: 8px 12px;
   background: #173b24;
   color: #fff;
   font-size: 0.95rem;
+  cursor: pointer;
 }
 
 .board-wrap {
@@ -79,6 +81,7 @@ button {
 }
 
 .markings,
+#shadowLayer,
 #drawLayer {
   position: absolute;
   inset: 0;

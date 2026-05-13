@@ -13,6 +13,11 @@
       <header class="toolbar">
         <h1>foostac</h1>
         <div class="controls">
+          <select id="coverageSelect" aria-label="Coverage team selection">
+            <option value="0">Coverage: Off</option>
+            <option value="1">Coverage: Team 1</option>
+            <option value="2">Coverage: Team 2</option>
+          </select>
           <button id="toggleDraw" type="button" aria-pressed="false">Draw: Off</button>
           <button id="clearDrawings" type="button" aria-label="Clear drawing layer">Clear Drawing</button>
           <button id="resetBoard" type="button" aria-label="Reset bars, ball, and drawings">Reset</button>
@@ -28,6 +33,7 @@
               <div class="goal-area goal-area-left"></div>
               <div class="goal-area goal-area-right"></div>
             </div>
+            <canvas id="shadowLayer"></canvas>
             <canvas id="drawLayer"></canvas>
           </div>
           <!-- Team 1 (blue) -->
