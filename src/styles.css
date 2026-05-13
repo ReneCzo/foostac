@@ -243,3 +243,19 @@ select {
   border-left: none;
   border-radius: 0 8px 8px 0;
 }
+
+/* Coverage mode: brighten blocking defenders, dim everyone else. */
+.player--blocker {
+  filter: brightness(1.5);
+}
+
+.player--dim {
+  opacity: 0.35;
+}
+
+/* Coverage select turns red when a direct shot to goal is open. */
+#coverageSelect.has-open-lane {
+  border-color: #ff4444;
+  background: #6b0000;
+  box-shadow: 0 0 8px rgba(255, 68, 68, 0.7);
+}
