@@ -82,55 +82,12 @@ function drawCoverage() {
   const goalBottomY = h * 0.65;
   const defendingTeam = team === 1 ? 2 : 1;
 
-  // Step 1: Dark overlay over the entire board.
-  shadowCtx.globalCompositeOperation = "source-over";
-  shadowCtx.globalAlpha = 0.55;
-  shadowCtx.fillStyle = "#000000";
-  shadowCtx.fillRect(0, 0, w, h);
-
-  // Cast the shadow of one player as seen from a given source point.
-  function castBlockingShadow(srcX, srcY, px, py) {
-    const dx = px - srcX;
-    const dy = py - srcY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 1) return;
-
-    const playerRadius = 14;
-    const nx = -dy / dist;
-    const ny = dx / dist;
-
-    const d1x = dx + nx * playerRadius;
-    const d1y = dy + ny * playerRadius;
-    const d2x = dx - nx * playerRadius;
-    const d2y = dy - ny * playerRadius;
-
-    const extendLen = Math.max(w, h) * 3;
-    const len1 = Math.sqrt(d1x * d1x + d1y * d1y);
-    const len2 = Math.sqrt(d2x * d2x + d2y * d2y);
-    const far1x = srcX + (d1x / len1) * extendLen;
-    const far1y = srcY + (d1y / len1) * extendLen;
-    const far2x = srcX + (d2x / len2) * extendLen;
-    const far2y = srcY + (d2y / len2) * extendLen;
-
-    shadowCtx.globalAlpha = 0.6;
-    shadowCtx.fillStyle = "#000000";
-    shadowCtx.beginPath();
-    shadowCtx.moveTo(srcX, srcY);
-    shadowCtx.lineTo(far1x, far1y);
-    shadowCtx.lineTo(far2x, far2y);
-    shadowCtx.closePath();
-    shadowCtx.fill();
-  }
-
-  // Step 2: Draw the angular shadow blocked by each defender, considering
-  // direct paths and both wall-bounce paths.
-  shadowCtx.globalCompositeOperation = "source-over";
-
+  // Collect every defending player that lies between the ball and the goal.
+  const defenders = [];
   bars
     .filter((b) => b.dataset.team === String(defendingTeam))
     .forEach((bar) => {
       const barX = (parseFloat(bar.style.left) / 100) * w;
-      // Only players between the ball and the goal cast a blocking shadow.
       const isBlocking = team === 1 ? barX > ballX : barX < ballX;
       if (!isBlocking) return;
 
@@ -140,33 +97,82 @@ function drawCoverage() {
 
       for (let i = 0; i < count; i += 1) {
         const py = ((i + 1) / (count + 1)) * h + barOffset;
-        castBlockingShadow(ballX, ballY, barX, py);          // direct shot
-        castBlockingShadow(ballX, -ballY, barX, py);         // top-wall bounce
-        castBlockingShadow(ballX, 2 * h - ballY, barX, py); // bottom-wall bounce
+        defenders.push({ x: barX, y: py });
       }
     });
 
-  // Carve out the shooting cone from a given source to the goal opening.
+  // Draw only the open (unblocked) part of a shooting cone from srcX/srcY to
+  // the goal opening, filled with the given color.
   // Wall-bounce paths use mirror-image sources: reflecting the ball across the
   // top wall (y=0) gives srcY=-ballY, across the bottom wall (y=h) gives
   // srcY=2h-ballY. The canvas clips the triangle to its own bounds automatically.
-  // This is done last so free lanes always appear bright, overriding any shadows.
-  function carveShootingCone(srcX, srcY) {
-    shadowCtx.globalCompositeOperation = "destination-out";
-    shadowCtx.globalAlpha = 1;
+  // Each call is isolated via save/restore + clip so destination-out doesn't
+  // bleed into cones drawn by other calls.
+  function drawOpenGap(srcX, srcY, color) {
+    shadowCtx.save();
+
+    // Clip all subsequent drawing to the shooting-cone triangle.
+    shadowCtx.beginPath();
+    shadowCtx.moveTo(srcX, srcY);
+    shadowCtx.lineTo(goalX, goalTopY);
+    shadowCtx.lineTo(goalX, goalBottomY);
+    shadowCtx.closePath();
+    shadowCtx.clip();
+
+    // Fill the full cone with the chosen color.
+    shadowCtx.globalCompositeOperation = "source-over";
+    shadowCtx.globalAlpha = 0.65;
+    shadowCtx.fillStyle = color;
     shadowCtx.beginPath();
     shadowCtx.moveTo(srcX, srcY);
     shadowCtx.lineTo(goalX, goalTopY);
     shadowCtx.lineTo(goalX, goalBottomY);
     shadowCtx.closePath();
     shadowCtx.fill();
+
+    // Erase the shadow cone cast by each blocking defender so only the truly
+    // open lanes remain visible.
+    shadowCtx.globalCompositeOperation = "destination-out";
+    shadowCtx.globalAlpha = 1;
+    defenders.forEach(({ x: px, y: py }) => {
+      const dx = px - srcX;
+      const dy = py - srcY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 1) return;
+
+      const playerRadius = 14;
+      const nx = -dy / dist;
+      const ny = dx / dist;
+
+      const d1x = dx + nx * playerRadius;
+      const d1y = dy + ny * playerRadius;
+      const d2x = dx - nx * playerRadius;
+      const d2y = dy - ny * playerRadius;
+
+      const extendLen = Math.max(w, h) * 3;
+      const len1 = Math.sqrt(d1x * d1x + d1y * d1y);
+      const len2 = Math.sqrt(d2x * d2x + d2y * d2y);
+      const far1x = srcX + (d1x / len1) * extendLen;
+      const far1y = srcY + (d1y / len1) * extendLen;
+      const far2x = srcX + (d2x / len2) * extendLen;
+      const far2y = srcY + (d2y / len2) * extendLen;
+
+      shadowCtx.beginPath();
+      shadowCtx.moveTo(srcX, srcY);
+      shadowCtx.lineTo(far1x, far1y);
+      shadowCtx.lineTo(far2x, far2y);
+      shadowCtx.closePath();
+      shadowCtx.fill();
+    });
+
+    shadowCtx.restore();
   }
 
-  // Step 3: Carve out direct shot cone and both wall-bounce cones so that
-  // free gaps are always shown bright on top of the blocking shadows.
-  carveShootingCone(ballX, ballY);           // direct path
-  carveShootingCone(ballX, -ballY);          // top-wall (Bande oben) bounce
-  carveShootingCone(ballX, 2 * h - ballY);  // bottom-wall (Bande unten) bounce
+  // Direct shot gaps — yellow.
+  drawOpenGap(ballX, ballY, "rgba(255, 220, 0, 1)");
+  // Wall-bounce (Bande) gaps — orange.
+  drawOpenGap(ballX, -ballY, "rgba(255, 140, 0, 1)");         // top wall
+  drawOpenGap(ballX, 2 * h - ballY, "rgba(255, 140, 0, 1)"); // bottom wall
 
   // Restore default compositing state.
   shadowCtx.globalCompositeOperation = "source-over";
