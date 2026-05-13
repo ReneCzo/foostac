@@ -317,6 +317,8 @@ select {
   .board {
     flex: none;
     min-height: 0;
+    /* 110px ≈ app padding-top (12) + toolbar (~32) + toolbar margin-bottom (10)
+       + board-wrap padding top+bottom (40) + app padding-bottom (12) */
     height: calc(100vh - 110px);
     height: calc(100svh - 110px);
   }
