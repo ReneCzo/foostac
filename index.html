@@ -6,6 +6,8 @@
     <title>foostac</title>
     <link rel="icon" href="./assets/favicon.ico" />
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="theme-color" content="#1a472a" />
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
@@ -88,5 +90,10 @@
       </section>
     </main>
     <script src="./src/script.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./sw.js");
+      }
+    </script>
   </body>
 </html>
