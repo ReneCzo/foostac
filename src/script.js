@@ -88,19 +88,63 @@ function drawCoverage() {
   shadowCtx.fillStyle = "#000000";
   shadowCtx.fillRect(0, 0, w, h);
 
-  // Step 2: Carve out the full shooting cone so the open area is transparent.
-  shadowCtx.globalCompositeOperation = "destination-out";
-  shadowCtx.globalAlpha = 1;
-  shadowCtx.beginPath();
-  shadowCtx.moveTo(ballX, ballY);
-  shadowCtx.lineTo(goalX, goalTopY);
-  shadowCtx.lineTo(goalX, goalBottomY);
-  shadowCtx.closePath();
-  shadowCtx.fill();
+  // Carve out the shooting cone from a given source to the goal opening.
+  // Wall-bounce paths use mirror-image sources: reflecting the ball across the
+  // top wall (y=0) gives srcY=-ballY, across the bottom wall (y=h) gives
+  // srcY=2h-ballY. The canvas clips the triangle to its own bounds automatically.
+  function carveShootingCone(srcX, srcY) {
+    shadowCtx.globalCompositeOperation = "destination-out";
+    shadowCtx.globalAlpha = 1;
+    shadowCtx.beginPath();
+    shadowCtx.moveTo(srcX, srcY);
+    shadowCtx.lineTo(goalX, goalTopY);
+    shadowCtx.lineTo(goalX, goalBottomY);
+    shadowCtx.closePath();
+    shadowCtx.fill();
+  }
 
-  // Step 3: Restore darkness for the angular region blocked by each defender.
+  // Step 2: Carve out direct shot cone and both wall-bounce cones.
+  carveShootingCone(ballX, ballY);           // direct path
+  carveShootingCone(ballX, -ballY);          // top-wall (Bande oben) bounce
+  carveShootingCone(ballX, 2 * h - ballY);  // bottom-wall (Bande unten) bounce
+
+  // Cast the shadow of one player as seen from a given source point.
+  function castBlockingShadow(srcX, srcY, px, py) {
+    const dx = px - srcX;
+    const dy = py - srcY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 1) return;
+
+    const playerRadius = 14;
+    const nx = -dy / dist;
+    const ny = dx / dist;
+
+    const d1x = dx + nx * playerRadius;
+    const d1y = dy + ny * playerRadius;
+    const d2x = dx - nx * playerRadius;
+    const d2y = dy - ny * playerRadius;
+
+    const extendLen = Math.max(w, h) * 3;
+    const len1 = Math.sqrt(d1x * d1x + d1y * d1y);
+    const len2 = Math.sqrt(d2x * d2x + d2y * d2y);
+    const far1x = srcX + (d1x / len1) * extendLen;
+    const far1y = srcY + (d1y / len1) * extendLen;
+    const far2x = srcX + (d2x / len2) * extendLen;
+    const far2y = srcY + (d2y / len2) * extendLen;
+
+    shadowCtx.globalAlpha = 0.6;
+    shadowCtx.fillStyle = "#000000";
+    shadowCtx.beginPath();
+    shadowCtx.moveTo(srcX, srcY);
+    shadowCtx.lineTo(far1x, far1y);
+    shadowCtx.lineTo(far2x, far2y);
+    shadowCtx.closePath();
+    shadowCtx.fill();
+  }
+
+  // Step 3: Restore darkness for the angular region blocked by each defender,
+  // considering direct paths and both wall-bounce paths.
   shadowCtx.globalCompositeOperation = "source-over";
-  const playerRadius = 14;
 
   bars
     .filter((b) => b.dataset.team === String(defendingTeam))
@@ -116,43 +160,29 @@ function drawCoverage() {
 
       for (let i = 0; i < count; i += 1) {
         const py = ((i + 1) / (count + 1)) * h + barOffset;
-        const dx = barX - ballX;
-        const dy = py - ballY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 1) continue;
-
-        // Perpendicular unit vector for tangent offset.
-        const nx = -dy / dist;
-        const ny = dx / dist;
-
-        // Two tangent directions from ball past the player's edges.
-        const d1x = dx + nx * playerRadius;
-        const d1y = dy + ny * playerRadius;
-        const d2x = dx - nx * playerRadius;
-        const d2y = dy - ny * playerRadius;
-
-        const extendLen = Math.max(w, h) * 3;
-        const len1 = Math.sqrt(d1x * d1x + d1y * d1y);
-        const len2 = Math.sqrt(d2x * d2x + d2y * d2y);
-        const far1x = ballX + (d1x / len1) * extendLen;
-        const far1y = ballY + (d1y / len1) * extendLen;
-        const far2x = ballX + (d2x / len2) * extendLen;
-        const far2y = ballY + (d2y / len2) * extendLen;
-
-        shadowCtx.globalAlpha = 0.6;
-        shadowCtx.fillStyle = "#000000";
-        shadowCtx.beginPath();
-        shadowCtx.moveTo(ballX, ballY);
-        shadowCtx.lineTo(far1x, far1y);
-        shadowCtx.lineTo(far2x, far2y);
-        shadowCtx.closePath();
-        shadowCtx.fill();
+        castBlockingShadow(ballX, ballY, barX, py);          // direct shot
+        castBlockingShadow(ballX, -ballY, barX, py);         // top-wall bounce
+        castBlockingShadow(ballX, 2 * h - ballY, barX, py); // bottom-wall bounce
       }
     });
 
   // Restore default compositing state.
   shadowCtx.globalCompositeOperation = "source-over";
   shadowCtx.globalAlpha = 1;
+}
+
+function isBallHit(pointerX, pointerY) {
+  const xPct = parseFloat(ball.style.getPropertyValue("--x") || "50%");
+  const yPct = parseFloat(ball.style.getPropertyValue("--y") || "50%");
+  const rect = board.getBoundingClientRect();
+  const ballX = (xPct / 100) * rect.width;
+  const ballY = (yPct / 100) * rect.height;
+  // Use a slightly generous hit radius so the ball stays grabbable when partly
+  // covered by a bar or player figure.
+  const hitRadius = 20;
+  const dx = pointerX - ballX;
+  const dy = pointerY - ballY;
+  return dx * dx + dy * dy <= hitRadius * hitRadius;
 }
 
 function clamp(value, min, max) {
@@ -196,7 +226,6 @@ function handleBallMove(pointerX, pointerY, rect) {
 }
 
 function onPointerDown(event) {
-  const target = event.target.closest(".bar, .ball");
   if (!board.contains(event.target)) {
     return;
   }
@@ -208,17 +237,23 @@ function onPointerDown(event) {
     return;
   }
 
+  // Always prioritise the ball so it remains grabbable even when a bar or
+  // player figure is rendered on top of it.
+  if (isBallHit(x, y)) {
+    event.preventDefault();
+    ball.setPointerCapture(event.pointerId);
+    boardState.pointers.set(event.pointerId, { type: "ball" });
+    return;
+  }
+
+  const target = event.target.closest(".bar");
   if (!target) {
     return;
   }
 
   event.preventDefault();
   event.target.setPointerCapture(event.pointerId);
-  if (target.classList.contains("bar")) {
-    boardState.pointers.set(event.pointerId, { type: "bar", id: target.dataset.id });
-  } else if (target.classList.contains("ball")) {
-    boardState.pointers.set(event.pointerId, { type: "ball" });
-  }
+  boardState.pointers.set(event.pointerId, { type: "bar", id: target.dataset.id });
 }
 
 function onPointerMove(event) {
