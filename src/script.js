@@ -62,12 +62,75 @@ function resizeDrawingLayer() {
   });
 }
 
+// Returns true when the direct-shot cone from (ballX, ballY) to the goal has
+// at least one gap not blocked by any defender.
+function hasDirectOpenLane(ballX, ballY, defenders, goalX, goalTopY, goalBottomY) {
+  if (defenders.length === 0) return true;
+
+  // Minimum x-component of a shadow ray for it to be considered pointing toward
+  // the goal rather than nearly perpendicular.
+  const NEAR_ZERO = 0.01;
+  // Minimum open gap in pixels at the goal line to count as a usable lane.
+  const MIN_GAP_PX = 0.5;
+
+  const playerRadius = 14;
+  const goalDir = Math.sign(goalX - ballX); // +1 right, -1 left
+  const intervals = [];
+
+  for (const { x: px, y: py } of defenders) {
+    const dx = px - ballX;
+    const dy = py - ballY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 1) continue;
+
+    const nx = -dy / dist;
+    const ny = dx / dist;
+
+    const d1x = dx + nx * playerRadius;
+    const d1y = dy + ny * playerRadius;
+    const d2x = dx - nx * playerRadius;
+    const d2y = dy - ny * playerRadius;
+
+    // Only project rays that actually point toward the goal.
+    if (Math.abs(d1x) < NEAR_ZERO || Math.abs(d2x) < NEAR_ZERO) continue;
+    if (Math.sign(d1x) !== goalDir || Math.sign(d2x) !== goalDir) continue;
+
+    const t1 = (goalX - ballX) / d1x;
+    const t2 = (goalX - ballX) / d2x;
+    const y1 = ballY + t1 * d1y;
+    const y2 = ballY + t2 * d2y;
+
+    const shadowTop = Math.max(goalTopY, Math.min(y1, y2));
+    const shadowBot = Math.min(goalBottomY, Math.max(y1, y2));
+    if (shadowBot > shadowTop) {
+      intervals.push([shadowTop, shadowBot]);
+    }
+  }
+
+  if (intervals.length === 0) return true;
+
+  intervals.sort((a, b) => a[0] - b[0]);
+  let covered = goalTopY;
+  for (const [lo, hi] of intervals) {
+    if (lo > covered + MIN_GAP_PX) return true;
+    if (hi > covered) covered = hi;
+  }
+  return covered < goalBottomY - MIN_GAP_PX;
+}
+
 function drawCoverage() {
   const team = boardState.coverageTeam;
   const w = shadowLayer.width;
   const h = shadowLayer.height;
 
   shadowCtx.clearRect(0, 0, w, h);
+
+  // Reset player highlights and open-lane indicator whenever coverage is redrawn.
+  document.querySelectorAll(".player").forEach((p) => {
+    p.classList.remove("player--blocker", "player--dim");
+  });
+  coverageSelect.classList.remove("has-open-lane");
+
   if (!team) return;
 
   const xPct = parseFloat(ball.style.getPropertyValue("--x") || "50%");
@@ -82,24 +145,43 @@ function drawCoverage() {
   const goalBottomY = h * 0.65;
   const defendingTeam = team === 1 ? 2 : 1;
 
-  // Collect every defending player that lies between the ball and the goal.
+  // Collect every defending player that lies between the ball and the goal,
+  // and track their DOM elements for the brightness highlight.
   const defenders = [];
+  const blockerElements = new Set();
   bars
     .filter((b) => b.dataset.team === String(defendingTeam))
     .forEach((bar) => {
       const barX = (parseFloat(bar.style.left) / 100) * w;
       const isBlocking = team === 1 ? barX > ballX : barX < ballX;
-      if (!isBlocking) return;
 
       const barOffset = parseFloat(bar.style.getPropertyValue("--bar-offset") || "0");
       const playersEl = bar.querySelector(".players");
       const count = parseInt(playersEl.dataset.count, 10);
+      const playerEls = Array.from(playersEl.querySelectorAll(".player"));
 
       for (let i = 0; i < count; i += 1) {
         const py = ((i + 1) / (count + 1)) * h + barOffset;
-        defenders.push({ x: barX, y: py });
+        if (isBlocking) {
+          defenders.push({ x: barX, y: py });
+          if (playerEls[i]) blockerElements.add(playerEls[i]);
+        }
       }
     });
+
+  // Highlight blocking defenders; dim everyone else.
+  document.querySelectorAll(".player").forEach((p) => {
+    if (blockerElements.has(p)) {
+      p.classList.add("player--blocker");
+    } else {
+      p.classList.add("player--dim");
+    }
+  });
+
+  // Flag the coverage select red when a straight shot to goal is possible.
+  if (hasDirectOpenLane(ballX, ballY, defenders, goalX, goalTopY, goalBottomY)) {
+    coverageSelect.classList.add("has-open-lane");
+  }
 
   // Draw only the open (unblocked) part of a shooting cone from srcX/srcY to
   // the goal opening, filled with the given color.
@@ -168,11 +250,11 @@ function drawCoverage() {
     shadowCtx.restore();
   }
 
-  // Direct shot gaps — yellow.
-  drawOpenGap(ballX, ballY, "rgba(255, 220, 0, 1)");
-  // Wall-bounce (Bande) gaps — orange.
+  // Wall-bounce (Bande) gaps — orange; drawn first so the direct lane is on top.
   drawOpenGap(ballX, -ballY, "rgba(255, 140, 0, 1)");         // top wall
   drawOpenGap(ballX, 2 * h - ballY, "rgba(255, 140, 0, 1)"); // bottom wall
+  // Direct shot gaps — yellow; drawn last so they are never hidden by orange.
+  drawOpenGap(ballX, ballY, "rgba(255, 220, 0, 1)");
 
   // Restore default compositing state.
   shadowCtx.globalCompositeOperation = "source-over";
