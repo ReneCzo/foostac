@@ -65,7 +65,7 @@ select {
   position: relative;
   flex: 1 1 auto;
   aspect-ratio: 16 / 10;
-  min-height: 70vh;
+  min-height: min(70vh, 580px, calc(62.5vw - 60px));
   border: 3px solid #fff;
   border-radius: 12px;
   touch-action: none;
