@@ -188,34 +188,44 @@ function drawCoverage() {
   // Wall-bounce paths use mirror-image sources: reflecting the ball across the
   // top wall (y=0) gives srcY=-ballY, across the bottom wall (y=h) gives
   // srcY=2h-ballY. The canvas clips the triangle to its own bounds automatically.
-  // Each call is isolated via save/restore + clip so destination-out doesn't
-  // bleed into cones drawn by other calls.
+  // Each cone is rendered onto a shared offscreen canvas (cleared before use) so
+  // that destination-out shadow erasure only affects that cone and never removes
+  // pixels belonging to a previously composited cone (e.g. band options must stay
+  // visible even where the direct-shot shadow would otherwise erase them).
+  const offscreen = document.createElement("canvas");
+  offscreen.width = w;
+  offscreen.height = h;
+  const offCtx = offscreen.getContext("2d");
+
   function drawOpenGap(srcX, srcY, color) {
-    shadowCtx.save();
+    offCtx.clearRect(0, 0, w, h);
+    const ctx = offCtx;
+
+    ctx.save();
 
     // Clip all subsequent drawing to the shooting-cone triangle.
-    shadowCtx.beginPath();
-    shadowCtx.moveTo(srcX, srcY);
-    shadowCtx.lineTo(goalX, goalTopY);
-    shadowCtx.lineTo(goalX, goalBottomY);
-    shadowCtx.closePath();
-    shadowCtx.clip();
+    ctx.beginPath();
+    ctx.moveTo(srcX, srcY);
+    ctx.lineTo(goalX, goalTopY);
+    ctx.lineTo(goalX, goalBottomY);
+    ctx.closePath();
+    ctx.clip();
 
     // Fill the full cone with the chosen color.
-    shadowCtx.globalCompositeOperation = "source-over";
-    shadowCtx.globalAlpha = 0.65;
-    shadowCtx.fillStyle = color;
-    shadowCtx.beginPath();
-    shadowCtx.moveTo(srcX, srcY);
-    shadowCtx.lineTo(goalX, goalTopY);
-    shadowCtx.lineTo(goalX, goalBottomY);
-    shadowCtx.closePath();
-    shadowCtx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 0.65;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(srcX, srcY);
+    ctx.lineTo(goalX, goalTopY);
+    ctx.lineTo(goalX, goalBottomY);
+    ctx.closePath();
+    ctx.fill();
 
     // Erase the shadow cone cast by each blocking defender so only the truly
     // open lanes remain visible.
-    shadowCtx.globalCompositeOperation = "destination-out";
-    shadowCtx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.globalAlpha = 1;
     defenders.forEach(({ x: px, y: py }) => {
       const dx = px - srcX;
       const dy = py - srcY;
@@ -239,14 +249,22 @@ function drawCoverage() {
       const far2x = srcX + (d2x / len2) * extendLen;
       const far2y = srcY + (d2y / len2) * extendLen;
 
-      shadowCtx.beginPath();
-      shadowCtx.moveTo(srcX, srcY);
-      shadowCtx.lineTo(far1x, far1y);
-      shadowCtx.lineTo(far2x, far2y);
-      shadowCtx.closePath();
-      shadowCtx.fill();
+      ctx.beginPath();
+      ctx.moveTo(srcX, srcY);
+      ctx.lineTo(far1x, far1y);
+      ctx.lineTo(far2x, far2y);
+      ctx.closePath();
+      ctx.fill();
     });
 
+    ctx.restore();
+
+    // Composite the finished cone onto the shadow layer with source-over so it
+    // sits on top of any cones drawn before it without erasing them.
+    shadowCtx.save();
+    shadowCtx.globalCompositeOperation = "source-over";
+    shadowCtx.globalAlpha = 1;
+    shadowCtx.drawImage(offscreen, 0, 0);
     shadowCtx.restore();
   }
 
@@ -255,10 +273,6 @@ function drawCoverage() {
   drawOpenGap(ballX, 2 * h - ballY, "rgba(255, 140, 0, 1)"); // bottom wall
   // Direct shot gaps — yellow; drawn last so they are never hidden by orange.
   drawOpenGap(ballX, ballY, "rgba(255, 220, 0, 1)");
-
-  // Restore default compositing state.
-  shadowCtx.globalCompositeOperation = "source-over";
-  shadowCtx.globalAlpha = 1;
 }
 
 function isBallHit(pointerX, pointerY) {
