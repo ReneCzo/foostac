@@ -146,6 +146,30 @@ select {
   border-right: none;
 }
 
+/* Penalty arc: semicircle in front of each penalty area.
+   The arc is a full circle (aspect-ratio: 1) clipped to show only the half
+   that protrudes into the field. Its diameter equals the goal-area height
+   (44% of field height = 27.5% of field width for the 16:10 aspect ratio),
+   so the arc endpoints align with the goal-area top/bottom edges. */
+.penalty-arc {
+  position: absolute;
+  top: 28%; /* = (100% - 44%) / 2, aligns with goal-area top edge */
+  width: 27.5%; /* diameter: 27.5% × W = 44% × H (equal pixel radius) */
+  aspect-ratio: 1;
+  border: 3px solid #fff;
+  border-radius: 50%;
+}
+
+.penalty-arc-left {
+  left: 9.25%; /* = 23% (penalty area edge) − 13.75% (radius) */
+  clip-path: inset(0% 0% 0% 50%); /* show right half only */
+}
+
+.penalty-arc-right {
+  left: 63.25%; /* = 77% (penalty area edge) − 13.75% (radius) */
+  clip-path: inset(0% 50% 0% 0%); /* show left half only */
+}
+
 .bar {
   --bar-offset: 0%;
   position: absolute;
