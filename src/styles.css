@@ -18,6 +18,8 @@ body {
   width: min(1024px, 100vw);
   margin: 0 auto;
   padding: 12px;
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
 }
 
 .toolbar {

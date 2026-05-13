@@ -197,7 +197,7 @@ function drawCoverage() {
   offscreen.height = h;
   const offCtx = offscreen.getContext("2d");
 
-  function drawOpenGap(srcX, srcY, color) {
+  function drawOpenGap(srcX, srcY, color, blockers) {
     offCtx.clearRect(0, 0, w, h);
     const ctx = offCtx;
 
@@ -222,11 +222,11 @@ function drawCoverage() {
     ctx.closePath();
     ctx.fill();
 
-    // Erase the shadow cone cast by each blocking defender so only the truly
+    // Erase the shadow cone cast by each blocker so only the truly
     // open lanes remain visible.
     ctx.globalCompositeOperation = "destination-out";
     ctx.globalAlpha = 1;
-    defenders.forEach(({ x: px, y: py }) => {
+    blockers.forEach(({ x: px, y: py }) => {
       const dx = px - srcX;
       const dy = py - srcY;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -269,10 +269,37 @@ function drawCoverage() {
   }
 
   // Wall-bounce (Bande) gaps — orange; drawn first so the direct lane is on top.
-  drawOpenGap(ballX, -ballY, "rgba(255, 140, 0, 1)");         // top wall
-  drawOpenGap(ballX, 2 * h - ballY, "rgba(255, 140, 0, 1)"); // bottom wall
+  // Pre-bounce blockers: any player (either team) between the ball and the wall,
+  // mirrored into the unfolded reflection space so the shadow geometry handles
+  // both the incoming and outgoing paths of each bank shot correctly.
+  const allPlayers = [];
+  bars.forEach((bar) => {
+    const barX = (parseFloat(bar.style.left) / 100) * w;
+    const barOffset = parseFloat(bar.style.getPropertyValue("--bar-offset") || "0");
+    const playersEl = bar.querySelector(".players");
+    const count = parseInt(playersEl.dataset.count, 10);
+    for (let i = 0; i < count; i += 1) {
+      const py = ((i + 1) / (count + 1)) * h + barOffset;
+      allPlayers.push({ x: barX, y: py });
+    }
+  });
+
+  // Players above the ball can block the path to the top wall; reflect them
+  // across y=0 into the unfolded view.
+  const preBounceTopBlockers = allPlayers
+    .filter((p) => p.y < ballY)
+    .map((p) => ({ x: p.x, y: -p.y }));
+
+  // Players below the ball can block the path to the bottom wall; reflect them
+  // across y=h into the unfolded view.
+  const preBounceBottomBlockers = allPlayers
+    .filter((p) => p.y > ballY)
+    .map((p) => ({ x: p.x, y: 2 * h - p.y }));
+
+  drawOpenGap(ballX, -ballY, "rgba(255, 140, 0, 1)", [...defenders, ...preBounceTopBlockers]);         // top wall
+  drawOpenGap(ballX, 2 * h - ballY, "rgba(255, 140, 0, 1)", [...defenders, ...preBounceBottomBlockers]); // bottom wall
   // Direct shot gaps — yellow; drawn last so they are never hidden by orange.
-  drawOpenGap(ballX, ballY, "rgba(255, 220, 0, 1)");
+  drawOpenGap(ballX, ballY, "rgba(255, 220, 0, 1)", defenders);
 }
 
 function isBallHit(pointerX, pointerY) {
@@ -302,7 +329,7 @@ function pointerPosition(event) {
   };
 }
 
-function handleBarMove(bar, pointerY, rect) {
+function handleBarMove(bar, pointerY, rect, grabOffset) {
   const constrainedIds = ["bar-2", "bar-3", "bar-4", "bar-5", "bar-6", "bar-7"];
   let maxOffset;
   if (constrainedIds.includes(bar.dataset.id)) {
@@ -316,7 +343,7 @@ function handleBarMove(bar, pointerY, rect) {
   } else {
     maxOffset = rect.height * 0.2;
   }
-  const offset = clamp(pointerY - rect.height / 2, -maxOffset, maxOffset);
+  const offset = clamp(pointerY - grabOffset - rect.height / 2, -maxOffset, maxOffset);
   bar.style.setProperty("--bar-offset", `${offset}px`);
   drawCoverage();
 }
@@ -334,7 +361,7 @@ function onPointerDown(event) {
     return;
   }
 
-  const { x, y } = pointerPosition(event);
+  const { x, y, rect } = pointerPosition(event);
 
   if (boardState.drawMode) {
     boardState.pointers.set(event.pointerId, { type: "draw", x, y });
@@ -357,7 +384,9 @@ function onPointerDown(event) {
 
   event.preventDefault();
   event.target.setPointerCapture(event.pointerId);
-  boardState.pointers.set(event.pointerId, { type: "bar", id: target.dataset.id });
+  const currentOffset = parseFloat(target.style.getPropertyValue("--bar-offset") || "0");
+  const grabOffset = y - (rect.height / 2 + currentOffset);
+  boardState.pointers.set(event.pointerId, { type: "bar", id: target.dataset.id, grabOffset });
 }
 
 function onPointerMove(event) {
@@ -384,7 +413,7 @@ function onPointerMove(event) {
   } else if (pointer.type === "bar") {
     const bar = bars.find((item) => item.dataset.id === pointer.id);
     if (bar) {
-      handleBarMove(bar, y, rect);
+      handleBarMove(bar, y, rect, pointer.grabOffset);
     }
   }
 }
