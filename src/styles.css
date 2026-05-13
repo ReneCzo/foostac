@@ -304,3 +304,20 @@ select {
   background: #6b0000;
   box-shadow: 0 0 8px rgba(255, 68, 68, 0.7);
 }
+
+/* On phones in landscape the board's aspect-ratio would make it taller than
+   the viewport. Cap the board height to the available screen height and let
+   aspect-ratio compute the correct width. */
+@media (orientation: landscape) and (max-height: 600px) {
+  .board-wrap {
+    padding: 20px 0;
+    justify-content: center;
+  }
+
+  .board {
+    flex: none;
+    min-height: 0;
+    height: calc(100vh - 110px);
+    height: calc(100svh - 110px);
+  }
+}
